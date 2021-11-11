@@ -10,6 +10,7 @@ use PhpMqtt\Client\Exceptions\PendingMessageNotFoundException;
 use PhpMqtt\Client\Exceptions\RepositoryException;
 use PhpMqtt\Client\PendingMessage;
 use PhpMqtt\Client\PublishedMessage;
+use PhpMqtt\Client\SubscribeRequest;
 use PhpMqtt\Client\Subscription;
 
 /**
@@ -202,11 +203,21 @@ class MemoryRepository implements Repository
         $result = [];
 
         foreach ($this->subscriptions as $subscription) {
-            if ($topicName !== null && !$subscription->matchesTopic($topicName)) {
-                continue;
+            if ($topicName === null || $subscription->matchesTopic($topicName)) {
+                $result[] = $subscription;
             }
+        }
 
-            $result[] = $subscription;
+        if (!$result) {
+            foreach ($this->pendingOutgoingMessages as $message) {
+                if ($message instanceof SubscribeRequest) {
+                    foreach ($message->getSubscriptions() as $subscription) {
+                        if ($topicName === null || $subscription->matchesTopic($topicName)) {
+                            $result[] = $subscription;
+                        }
+                    }
+                }
+            }
         }
 
         return $result;
